@@ -1,11 +1,14 @@
-constexpr size_t RECORDS_COUT = 4000;
-constexpr size_t RECORDS_ON_PAGE = 20;
-constexpr size_t PAGES_COUNT = RECORDS_COUT / RECORDS_ON_PAGE;
+constexpr int RECORDS_COUT = 4000;
+constexpr int RECORDS_ON_PAGE = 20;
+constexpr int PAGES_COUNT = RECORDS_COUT / RECORDS_ON_PAGE;
 
 #include <iostream>
+#include <cstring>
 #include <format>
+#include <string>
 #include <algorithm>
-#include <conio.h>
+#include <ncurses.h>
+#include <cstdlib>
 
 using namespace std;
 
@@ -68,7 +71,7 @@ public:
     }
 };
 
-static void print_records_with_pagination(size_t current_page, size_t pages_count, size_t records_on_page, record** records);
+static void print_records_with_pagination(int current_page, int pages_count, int records_on_page, record** records);
 static void quick_sort(record** a, int l, int r);
 static void loop(record** indexes);
 static void search(record** indexes);
@@ -78,33 +81,36 @@ static char* get_surname(const char full_name[32]);
 int main()
 {
     FILE* fp;
-    fp = fopen("testBase1.dat", "rb");
+    fp = fopen("testBase.dat", "rb");
     record records[RECORDS_COUT] = { 0 };
 
-    size_t records_count = fread((record*)records, sizeof(record), RECORDS_COUT, fp);
-    size_t pages_count = RECORDS_COUT / RECORDS_ON_PAGE;
+    int records_count = fread((record*)records, sizeof(record), RECORDS_COUT, fp);
+    int pages_count = RECORDS_COUT / RECORDS_ON_PAGE;
 
     record** indexes = new record * [RECORDS_COUT];
 
-    for (size_t i = 0; i < RECORDS_COUT; i++) {
+    for (int i = 0; i < RECORDS_COUT; i++) {
         indexes[i] = &records[i];
     }
 
+    initscr();
     loop(indexes);
+    endwin();
 
     fclose(fp);
     return 0;
 }
 
-static void print_records_with_pagination(size_t current_page, size_t pages_count, size_t records_on_page, record** records) {
-    system("cls");
-    cout << "Page: " << current_page + 1 << " / " << pages_count << endl;
-    cout << format("{:12}", "Author") << "\t" << format("{:30}", "Title") << "\t" << "Publisher" << "\t" << "Year" << "\t" << "Pages" << endl;
+static void print_records_with_pagination(int current_page, int pages_count, int records_on_page, record** records) {
+    clear();
+    refresh();
+    printw("Page: %d / %d\n", current_page + 1, pages_count);
+    printw("%12s\t%30s\t%s\t%s\t%s\n", "Author", "Title", "Publisher", "Year", "Page");
 
-    for (size_t i = current_page * records_on_page; (i < 4000) && (i < current_page * records_on_page + records_on_page); ++i)
-        cout << records[i]->author << "\t" << records[i]->title << "\t" << records[i]->publisher << "\t" << records[i]->year << "\t" << records[i]->num_of_page << endl;
-
-    int input_key = _getch();
+    for (int i = current_page * records_on_page; (i < 4000) && (i < current_page * records_on_page + records_on_page); ++i)
+        printw("%12s\t%30s\t%s\t%d\t%d\n",records[i]->author, records[i]->title, records[i]->publisher, records[i]->year, records[i]->num_of_page);
+    
+    int input_key = getch();
 
     if (input_key == 27) return;
     if ((input_key == 110 || input_key == 226) && current_page < pages_count - 1) current_page += 1;
@@ -148,13 +154,14 @@ static char* get_surname(const char full_name[32]) {
 }
 
 static void loop(record** indexes) {
-    size_t input_key = 0;
+    int input_key = 0;
     bool is_sorted = false;
 
     while (input_key != 27) {
-        system("cls");
-        cout << "[I] - initial data | [S] - sorted data | [F] - search data" << endl;
-        input_key = _getch();
+        clear();
+        refresh();
+        printw("[I] - initial data | [S] - sorted data | [F] - search data\n");
+        input_key = getch();
 
         if (input_key == 105 || input_key == 232) {
             print_records_with_pagination(0, PAGES_COUNT, RECORDS_ON_PAGE, indexes);
@@ -179,31 +186,29 @@ static void loop(record** indexes) {
 }
 
 static void search(record** indexes) {
-    string key;
-    cout << "Input key: ";
-    cin >> key;
+    char input[10];
+    printw("Input key: ");
+    getstr(input);
+    printw("\n");
+    string key(input);
 
     Queue queue;
     binary_search(indexes, key, queue);
 
     if (!queue.isEmpty()) {
-        cout << "Records:" << endl;
+        printw("Records:\n");
         record* rec;
         while (queue.dequeue(rec)) {
-            cout << rec->author << "\t"
-                << rec->title << "\t"
-                << rec->publisher << "\t"
-                << rec->year << "\t"
-                << rec->num_of_page << endl;
+            printw("%12s\t%30s\t%s\t%d\t%d\n",rec->author, rec->title, rec->publisher, rec->year, rec->num_of_page);
         }
 
-        _getch();
+        getch();
     }
     else {
-        cout << "Error! Not found [" << key << "]" << endl;
+        printw("Error! Not found [%s]\n", key.c_str());
     }
-
-    _getch();
+    
+    getch();
 }
 
 void binary_search(record** records, string& key, Queue& queue) {
